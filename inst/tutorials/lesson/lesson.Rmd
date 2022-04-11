@@ -31,10 +31,10 @@ dn1_table=dn_table[,c(1,5:148)]
 #Set time format
 dn1_table[,1]=as.POSIXct(dn1_table[,1], format="%m/%d/%Y %H:%M:%S", tz="GMT")
 dn2_table=nsvp(dn1_table,dlogdp=FALSE)
-dndlogdp_table=transp(dndlogdp_list)
 dndlogdp_list=dn2_table[["df_channels"]][,c(1,2,4)]
 dsdlogdp_list=dn2_table[["df_channels"]][,c(2,5)]
 ds_avri=avri(dsdlogdp_list,mode="custom",value=1)
+dndlogdp_table=transp(dndlogdp_list)
 ```
 
 ## 前言 <img src="https://s1.ax1x.com/2022/03/10/bhmsTs.png" align="right" width="120" />  
