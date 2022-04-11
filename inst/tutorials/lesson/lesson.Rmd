@@ -31,6 +31,7 @@ dn1_table=dn_table[,c(1,5:148)]
 #Set time format
 dn1_table[,1]=as.POSIXct(dn1_table[,1], format="%m/%d/%Y %H:%M:%S", tz="GMT")
 dn2_table=nsvp(dn1_table,dlogdp=FALSE)
+dndlogdp_table=transp(dndlogdp_list)
 dndlogdp_list=dn2_table[["df_channels"]][,c(1,2,4)]
 dsdlogdp_list=dn2_table[["df_channels"]][,c(2,5)]
 ds_avri=avri(dsdlogdp_list,mode="custom",value=1)
@@ -1039,7 +1040,7 @@ geom_psd(dn1_table,fsz=10)
 
 `nsvp()`可以帮助你计算颗粒的表面积、体积和质量，通过颗粒数量的浓度来计算。 
 
-计算结果分为两个表格，一个是子粒径段`dN`, `dN_dlogdp`, `dS`, `dV`, `dM`, `dS_dlogdp`, `dV_dlogdp`, dM_dlogdp`；另一个是总粒径段`N`, `S`, `V`, `M`。   
+计算结果分为两个表格，一个是子粒径段`dN`, `dN_dlogdp`, `dS`, `dV`, `dM`, `dS_dlogdp`, `dV_dlogdp`, `dM_dlogdp`；另一个是总粒径段`N`, `S`, `V`, `M`。   
 
 ```{r nsvp1, warning=FALSE, exercise=TRUE, tidy=FALSE}
 dn2_table=nsvp(dn1_table,dlogdp=FALSE)
