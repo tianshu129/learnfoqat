@@ -1,0 +1,1140 @@
+---
+title: "FOQAT漫游指南"
+output: learnr::tutorial
+runtime: shiny_prerendered
+description: >
+  这是一个foqat中文教程。
+---
+
+```{r setup, include=FALSE}
+library(learnr)
+library(foqat)
+library(ggplot2)
+library(rmarkdown)
+
+aqids=trs(aqi, bkip="10 min")
+aqids$NO[aqids$NO>7]=NA
+aqids$NO2=aqids$NO2*0.3
+cols <- names(aqids)[2:6]
+aqids[, 2:6]=round(aqids[, 2:6], 2)
+metds=trs(met, bkip="5 mins")
+
+avri_aqi=avri(aqi, bkip = "1 hour", mode = "recipes", value = "day", st = "2017-05-01 00:00:00")
+
+voc_con=vocct(voc)
+voc_ofp=ofp(voc)
+voc_loh=loh(voc)
+
+#Read built-in files
+dn_table = read.delim(system.file("extdata", "smps.txt", package = "foqat"), check.names = FALSE)
+dn1_table=dn_table[,c(1,5:148)]
+#Set time format
+dn1_table[,1]=as.POSIXct(dn1_table[,1], format="%m/%d/%Y %H:%M:%S", tz="GMT")
+dn2_table=nsvp(dn1_table,dlogdp=FALSE)
+dndlogdp_list=dn2_table[["df_channels"]][,c(1,2,4)]
+dsdlogdp_list=dn2_table[["df_channels"]][,c(2,5)]
+ds_avri=avri(dsdlogdp_list,mode="custom",value=1)
+```
+
+## 前言 <img src="https://s1.ax1x.com/2022/03/10/bhmsTs.png" align="right" width="120" />  
+***
+
+FOQAT漫游指南。  
+
+更新日期：2022/4/11  
+
+作者：陈天舒  
+
+邮箱： tianshu129@163.com  
+
+中文手册主页：[yuque.com/foqat/doc](yuque.com/foqat/doc)  
+
+英文手册主页：[tianshu129.github.io/foqat](tianshu129.github.io/foqat)
+
+以下是foqat的功能： 
+
+![](https://s1.ax1x.com/2022/04/06/qvG8DU.png){width=750px}
+
+
+## 准备
+***  
+
+使用本教程前，请先安装R和Rstudio。
+
+请先安装R语言原生程序，后安装R语言集成开发平台Rstudio (Desktop版本即可）。然后打开Rstudio，即可在界面右下方的控制台开始输入代码。请点击链接。（最好先装R，然后装Rstudio）
+
+R：[cloud.r-project.org/](https://cloud.r-project.org/)  
+
+rstudio-desktop：[rstudio.com/products/rstudio/#rstudio-desktop](https://rstudio.com/products/rstudio/#rstudio-desktop)
+
+如果你不懂得安装，也可以看这里：[zhuanlan.zhihu.com/p/43009653](https://zhuanlan.zhihu.com/p/43009653)  
+
+然后打开Rstudio，输入如下代码并回车：
+
+```{r install, eval=FALSE}
+install.packages("foqat")
+```
+
+## 一些R基础知识  
+***  
+
+### 基础知识引言  
+***  
+
+作为一门面向**对象**的语言，R语言的所有操作都是围绕对象展开的。  
+
+对象可以是一个变量也也可以是一个函数。
+
+而我们做的大多数操作就是通过对一个（群）变量使用函数得到一个新变量，格式为：  
+
+**新变量=某个函数(变量)**  
+
+所以我们要谈一下**变量**和**函数**。  
+
+### 变量
+***  
+
+你可以把变量理解为一个容器，什么都可以往里装。
+
+制作一个变量的方法就叫赋值。
+
+例如我们输入x=1，则生成了一个名为`x`，值为1的变量。
+
+既然什么都可以装进去，那就有必要划分一下**数据结构和类型**，否则容易引起混乱。 
+
+常见的R数据类型包括：文本型（character)、数字型（numeric）、日期时间型（datetime）、逻辑型（True和FALSE）和因子型（factor）。这些类型下面有的还有子类。之所以要区分是为了便于处理且防止计算错误。例如，我们可以从日期时间型数据中提取小时，但是不可能对字母这样做。我们可以把数字型相加，不可以对文本型这么做。  
+
+数据结构则是数据的组成形式。下图显示了R语言常见的数据类型：
+
+![](http://venus.ifca.unican.es/Rintro/_images/dataStructuresNew.png){width=750px}
+
+例如我们常见的自然数序列（1、2、3......）就属于`Vector`。  
+
+我们常用的excel表格就属于`Data Frame`。  
+
+我们常用的卫星数据（含有经纬度和卫星柱浓度数据）就属于`Array`。  
+
+List则可以把他们都放进来。就像一个书包可以同时放入饭盒和铅笔盒。但是饭盒和铅笔盒各自有不同的功能。    
+
+想了解更多数据的结构和类型知识可访问：
+[http://venus.ifca.unican.es/Rintro/dataStruct.html](http://venus.ifca.unican.es/Rintro/dataStruct.html)  
+[http://www.ahschulz.de/pub/R/data_structures/Data_Structures_in_R_web.pd](http://www.ahschulz.de/pub/R/data_structures/Data_Structures_in_R_web.pdf)  
+
+我们会最常用到的`Vector`和`Dataframe`。
+
+要创造一个`Vector`只要`c(你的数列)`。
+
+```{r vector, warning=FALSE, exercise=TRUE, tidy=FALSE}
+x=c(1,2,3,4,5,6)
+x
+```
+
+要创造一个`Dataframe`只要`data.frmae(列名=Vector)`。
+
+```{r dataframe, warning=FALSE, exercise=TRUE, tidy=FALSE}
+y=data.frame(a=c(1,2,3,4,5,6),b=c(1,2,3,1,2,3),c=c(4,5,6,4,5,6))
+y
+```
+
+要创造一个`List`只要往里面装东西。
+
+```{r list, warning=FALSE, exercise=TRUE, tidy=FALSE}
+z=list(x, y)
+z
+```
+
+### 函数
+***  
+
+知道变量后，我们再谈一下函数。它才是最神奇的物件。  
+
+你可以把函数理解成一种算法。  
+
+函数由“函数名（参数1，参数2，···）”构成。不同参数之间用逗号隔开。函数中的符号都是英文符号。。  
+
+你只要查看函数说明，看他需要什么参数。然后填写参数就行。就像一道填空题。  
+
+举个例例子，你要生成一个带有20个1的vector。
+
+你可以手动输入：  
+
+```{r vector20, warning=FALSE, exercise=TRUE, tidy=FALSE}
+x=c(1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1)
+x
+```
+
+但是这样太麻烦了，这时候我们可以利用一个函数：`rep()`。你可以在Rstudio界面查询这个函数的用法。  
+![](https://s1.ax1x.com/2022/04/11/LE785F.png){width=750px}
+
+这个页面就会告诉你有什么参数。一个是`x`，即你要重复的对象，一个参数是`times`，即重复的次数。然后我们做填空题就行了。  
+
+```{r vector_rep, warning=FALSE, exercise=TRUE, tidy=FALSE}
+x=rep(x=1, times=20)
+x
+```
+<br/>  
+
+如果你是按顺序填写的参数，你甚至可以不用写参数名。函数会自动按照顺序对应：  
+
+```{r vector_rep2, warning=FALSE, exercise=TRUE, tidy=FALSE}
+x=rep(1, 20)
+x
+```
+
+**函数才是编程语言最大的杀器。**把一些函数打包在一起，就是`package`。R语言最大的优势就是它有海量的`package`。这得益于R的免费开源和全球使用者的无私奉献。因此只要你会安装包，使用包的函数就相当于拥有了一个超大的工具库，而他们都遵循刚刚说到的函数格式（查函数-》查参数-》填空）。  
+
+### R包
+***  
+
+使用一个函数只要三步： 
+
+安装包-》载入包-》使用函数得到结果。
+
+举个例子：
+
+```{r rpkg, eval=FALSE}
+#安装包
+install.packages("foqat")
+#载入包
+library(foqat)
+#使用其中的函数
+stat(aqi)
+```
+
+这里有些关于安装R软件和使用R包的知识：[zhuanlan.zhihu.com/p/43009653](https://zhuanlan.zhihu.com/p/43009653)    
+
+这里就是基础知识了。
+
+## 所使用的演示数据  
+***
+
+本教程我们用到三个内置数据表`aqi`、`voc`和`met`。 这几个表都是foqat包内置的，无需额外读入。 
+<br/> 
+
+`aqi`表是一些空气质量数据的时间序列。
+
+```{r aqi_data, echo=FALSE, layout="l-body-outset", paged.print=FALSE}
+paged_table(aqi, options = list(max.print=10000, rows.print = 10, cols.print = 6))
+```
+<br/> 
+
+`voc`表是几个VOC物种的时间序列。
+
+```{r voc_data, echo=FALSE, layout="l-body-outset", paged.print=FALSE}
+paged_table(voc, options = list(max.print=10000, rows.print = 10, cols.print = 6))
+```
+<br/> 
+
+`met`表是一些气象参数的时间序列。
+
+```{r met_data, echo=FALSE, layout="l-body-outset", paged.print=FALSE}
+paged_table(met, options = list(max.print=10000, rows.print = 10, cols.print = 6))
+```
+
+## 基础数据处理 
+***
+
+### 统计时间序列  
+***  
+
+ `statdf()`可以用于统计时间序列。点击`run code`看看。
+
+```{r statdf, warning=FALSE, exercise=TRUE, tidy=FALSE}
+statdf(aqi)
+```
+
+### 时间序列重采样  
+***  
+
+我们可以通过使用`trs()`对时间序列进行重新取样。它会返回给你一个带有完整时间点的时间序列。  
+
+通过使用`bkip`来设置一个新的时间分辨率。   
+时间序列可以通过使用`st`（开始时间）和`et`（结束时间）进行剪裁。  
+重新取样的默认函`fun`数是`mean`。  
+通过设置`wind`为`TRUE`并指定`coliws`（风速的列索引）和`coliwd`（风速的列索引），可以接受风数据。   
+
+```{r trs, warning=FALSE, exercise=TRUE, tidy=FALSE}
+new_met=trs(met, bkip = "1 hour", st = "2017-05-01 01:00:00", fun="mean", wind = TRUE, coliws = 4, coliwd = 5)
+new_met
+```
+
+你也可以将重采样的默认函数改为`sum`、`median`、`min`、`max`、`sd`、`quantile`。如果你选择`quantile`，你还需要填写`probs`（例如，0.5）。 
+
+#### 练习
+
+请试试重新修改代码，采样空气质量数据表`aqi`每10分钟的最大值吧：
+
+```{r trs_test, warning=FALSE, exercise=TRUE, tidy=FALSE}
+new_met=trs(met, bkip = "1 hour", st = "2017-05-01 01:00:00", fun="mean", wind = TRUE, coliws = 4, coliwd = 5)
+new_met
+```
+
+这个函数的一个用处就是你可以很容易地合并来自不同仪器不同分辨率的数据，以进行进一步计算，例如求比值等。 
+
+下面这个例子我们试着合并`aqi`和`met`两个表，时间分辨率都统一为1小时。合并的时候用到R带的merge函数。参数1为第一个表，参数2为第二个表，参数`by`为用来合并的参考列，参数`all`指保留两个表的所有数据。  
+
+```{r trs_merge, warning=FALSE, exercise=TRUE, tidy=FALSE}
+aqi_hour=trs(aqi, bkip = "1 hour", st = "2017-05-01 01:00:00", fun="mean")
+met_hour=trs(met, bkip = "1 hour", st = "2017-05-01 01:00:00", fun="mean", wind = TRUE, coliws = 4, coliwd = 5)
+aqi_met=merge(aqi_hour, met_hour, by="Time", all=TRUE)
+aqi_met
+```
+
+### 计算时间序列的变化
+***  
+
+`svri()`帮助你计算时间序列的变化（例如，计算按小时分组的所有数值的最大值）。  
+
+`bkip`, `st`, `et`, `fun`的参数与`trs`相同。风力数据可以接受，就像`trs()`一样。  
+
+`mode`允许你选择计算模式，`value`是`mode`的子参数。有三种模式：`recipes`、`ncycle`、`custom`，下面将介绍。     
+
+#### `mode = recipes`
+
+`recipes`代表内置的解决方案。  
+模式`recipes`对应三个`value`：`day`、`week`、`month`。 
+`day`意味着时间序列将按0到23小时分组。  
+`week`意味着时间序列将按1到7小时分组。  
+`month`意味着时间序列将按1到31小时分组。  
+下面是一个例子，计算按小时分组的时间序列的中值（例如，0:00，1:00...）。  
+
+```{r svri_recipes, warning=FALSE, exercise=TRUE, tidy=FALSE}
+new_voc=svri(voc, bkip="1 hour", mode="recipes", value="day", fun="median")
+new_voc
+```
+
+#### `mode = ncycle`
+
+`ncycle`代表按每个周期中每行的顺序号对时间序列进行分组。  
+下面是一个例子，计算按小时分组的时间序列的中值（例如，0:00、1:00...）。  
+
+```{r svri_ncycle, warning=FALSE, exercise=TRUE, tidy=FALSE}
+new_voc=svri(voc, bkip="1 hour", st="2020-05-01 00:00:00", mode="ncycle", value=24, fun="median")
+new_voc
+```
+
+#### `mode = custom`
+
+`custom`代表按时间序列中的参考列进行分组。  
+如果你选择`mode = custom`，`value`代表参考列的索引。  
+下面是一个例子，计算按小时分组的时间序列的中值（例如，0:00，1:00...）。  
+
+```{r svri_custom, warning=FALSE, exercise=TRUE, tidy=FALSE}
+#add a new column stands for hour.
+voc_custom=voc
+voc_custom$hour=lubridate::hour(voc_custom$Time)
+#calculate according to the index of reference column.
+new_voc=svri(voc_custom, bkip = "1 hour", mode="custom", value=7, fun="median")
+new_voc
+```
+
+### 计算平均变化
+***  
+
+`avri()`是`svri()`的一个定制版本，帮助你计算时间序列的平均变化（含标准差）。   
+
+输出是一个数据框，包含平均变化和标准偏差。一个例子是一个3个物种的时间序列。第二列到第四列是平均变化，第五列到第七列是标准偏差。  
+
+```{r avri, warning=FALSE, exercise=TRUE, tidy=FALSE}
+new_voc=avri(voc, bkip = "1 hour", st = "2020-05-01 00:00:00")
+new_voc
+```
+
+### 将时间序列转换为比例时间序列
+***  
+
+`prop()`帮助你将时间序列转换成比例时间序列（例如，将物种浓度的时间序列转换成物种贡献的时间序列）。   
+
+```{r prop, warning=FALSE, exercise=TRUE, tidy=FALSE}
+prop_voc=prop(voc)
+prop_voc
+```
+
+### 时间序列的批量线性回归分析 
+***  
+
+`anylm()`允许你对时间序列进行批量的线性回归分析。    
+`xd`是你想放在x轴上的列的索引（自变量）。  
+`yd`是你想放在y轴上的列的索引（因变量）。  
+`zd`是你想作为色标的列的索引。 
+`td`是你想用来作为分组基础的列的索引。   
+
+下面演示一个简单的例子来说明这个功能。  
+这个例子探讨了内置数据集`aqi`的关联性。按天分组，它探索了每天O~3~与NO~2~的相关性。并使用CO作为填充颜色探索了CO对相关性的影响。    
+
+```{r anylm, fig.width = 8, fig.height = 8, warning=FALSE, exercise=TRUE, tidy=FALSE}
+df=data.frame(aqi,day=lubridate::day(aqi$Time))
+lr_result=anylm(df, xd=3, yd=6, zd=4, td=7,dign=3)
+summary(lr_result)
+```
+
+关于该函数更多信息可访问：https://zhuanlan.zhihu.com/p/162841404
+
+## 绘图  
+***  
+
+R语言的ggplot2包为我们提供了一套优雅的绘图系统。  
+
+但是如何更加高效地绘制外场观测数据的时间序列呢？  
+
+FOQAT包提供了一个较为简便的接口。  
+
+有两个优点：  
+
+一方面，这个接口极大降低外场观测数据的时间序列绘制的难度；  
+
+另一方面，这个接口支持ggplot2语法，可以采用ggplot2语法调整与美化目标图。  
+<br/>
+
+### 绘制常规时间序列
+*** 
+
+#### 介绍  
+***  
+当我们要绘制一个时间序列图，特别是组合时间序列图，我们需要先考虑三个基础问题：  
+
+1、要画哪些物种（或参数）？  
+
+2、哪些物种放左侧轴，哪些物种放右侧轴？  
+
+3、这些物种分别用什么类型展示（点、线、柱状、面积）？  
+
+考虑完这三个问题后，我们才能进一步考虑第四个问题： 
+
+4、图的美化问题（例如图例、颜色、字体、图层顺序等）？ 
+
+geom_ts函数针对这四个问题设置了几类参数，你只需要像做填空题那样，按照你的想法填写参数就行（不需要用到的参数不写）。  
+
+物种均用表中列号指代。  
+
+如果有用线型绘制两个物种，则线的颜色列表中需要有两个颜色，其他设置以此类推。  
+
+
+|属于第几个问题？|  参数   | 解释  | 举例 | 
+|  ----  | ----  | ----  | ----  |
+|1| df  | 数据表名 | aqids |
+|2| yl, yr  | 物种放置左y轴还是右y轴 | yl=c(3,2), yr=6 |
+|3| llist, plist, alist, blist  | 物种通过什么类型展示（线、点、面积、柱）| alist=c(3,2), llist=6 |
+|4| yllab, yrlab, xlab  | 左右y轴标签，x轴标签 |xlab="Time" |
+|4| llab, plab, alab, blab  | 各种类型图例标签（即使只有一个，必须用list的格式）|alab=list(bquote(NO[2]~" "), bquote(NO~" ")), llab=list(bquote(O[3]~" ")) |
+|4| ltype, pshape, lsize, psize  | 线型、点型、线尺寸、点尺寸 |ltype=1 |
+|4| lcc, pcc, aff, bff  | 线颜色、点颜色、面积填充色、柱填充色 |lcc="#ff4d4f", aff=c("#096dd9","#69c0ff")|
+|4| ana, apos, bna, bpos  | 面积图和柱状图NA值处理方式、堆叠方式| ana=FALSE |
+|4| yl_limit, yr_limit  | 左右y轴的上下限 | yl_limit=c(0,150) | 
+|4| yl_breaks, yr_breaks,  yl_minor_breaks  | 左右y轴的刻度间隔 | yl_breaks=c(0,  50, 100, 150) |
+
+这是函数的完整参数的模样（不需要用到的参数你可以不写）：  
+
+*geom_ts(
+  df,
+  yl = NULL,
+  yr = NULL,
+  yllab = NULL,
+  yrlab = NULL,
+  xlab = NULL,
+  llist = NULL,
+  plist = NULL,
+  alist = NULL,
+  blist = NULL,
+  llab = NULL,
+  plab = NULL,
+  alab = NULL,
+  blab = NULL,
+  ltype = NULL,
+  pshape = NULL,
+  lsize = 1,
+  psize = 1,
+  lcc = NULL,
+  pcc = NULL,
+  aff = NULL,
+  bff = NULL,
+  ana = TRUE,
+  apos = "stack",
+  bna = TRUE,
+  bpos = "identity",
+  yl_limit = NULL,
+  yr_limit = NULL,
+  yl_breaks = waiver(),
+  yr_breaks = waiver(),
+  yl_minor_breaks = waiver()
+)*  
+<br/>  
+
+
+我们对`aqi`和`met`稍作处理，生成`aqids`和`metds`。  
+
+```{r aqids, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+aqids=trs(aqi, bkip="10 min")
+aqids$NO[aqids$NO>7]=NA
+aqids$NO2=aqids$NO2*0.3
+cols <- names(aqids)[2:6]
+aqids[, 2:6]=round(aqids[, 2:6], 2)
+metds=trs(met, bkip="5 mins")
+```
+
+
+#### 举个例子   
+***  
+
+这是刚刚处理得到的`aqids`：  
+
+```{r regular1, echo=FALSE, layout="l-body-outset", paged.print=FALSE}
+paged_table(aqids, options = list(max.print=10000, rows.print = 10, cols.print = 6))
+```
+
+以下是一个实例，将NO~X~和O~3~浓度分别绘制在图中。其中NO和NO~2~以面积形式堆叠，使用左y轴，O~3~以线的形式绘制，使用右y轴。   
+
+点击“Run Code”，稍等片刻即可看到结果。
+
+```{r regular3, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+geom_ts(
+  df=aqids,   
+  yl=c(3,2), yr=6,   
+  alist=c(3,2), llist=6,   
+  yllab=bquote(NO[x]~" "~(ppbv)), yrlab=bquote(O[3]~" "~(ppbv)), xlab="Datetime",  
+  alab=list(bquote(NO[2]~" "), bquote(NO~" ")), llab=list(bquote(O[3]~" ")),  
+  lcc="#ff4d4f", aff=c("#096dd9","#69c0ff"),
+  ana=FALSE
+)
+```
+<br/>
+
+### 调整左Y轴和右Y轴的范围 
+***  
+
+`yl_limit`和`yl_breaks`允许你在`geom_ts()`中调整左y轴的范围和中断。  
+
+`yr_limit`和`yr_breaks`允许你在`geom_ts()`中调整右y轴的范围和断点。  
+
+请看这个例子：  
+
+```{r adjust_yrange, fig.width = 7, fig.height = 3, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+geom_ts(
+  df=aqids,   
+  yl=c(3,2), yr=6,   
+  alist=c(3,2), llist=6,   
+  yllab=bquote(NO[x]~" "~(ppbv)), yrlab=bquote(O[3]~" "~(ppbv)), xlab="Datetime",  
+  alab=list(bquote(NO[2]~" "), bquote(NO~" ")), llab=list(bquote(O[3]~" ")),  
+  lcc="#ff4d4f", aff=c("#096dd9","#69c0ff"),
+  ana=FALSE,
+  yl_limit=c(0,5), 
+  yr_limit=c(0,120), 
+  yl_breaks= seq(0,5,1), 
+  yr_breaks=  seq(0,120,30)
+)
+```
+
+
+#### 设置轴和图例标签名
+***
+大气外场观测的物种名和参数名有各式各样格式，怎么办？  
+
+geom_ts函数支持bquote语法。例如你在前面例子看到的：bquote(O[3]~" "~(ppbv))
+
+这里有两张图，一张是书写方式，一张是效果，看了之后对你应该有所启发。基础用法都在里面。（图片内容来自下文链接）  
+
+<img src="https://trinkerrstuff.files.wordpress.com/2018/03/picture1.png?w=640" align="middle"/>  
+
+<img src="https://trinkerrstuff.files.wordpress.com/2018/03/capture4.png?w=234&h=33" align="middle"/>  
+
+关于quote的使用方法我是在这里速成的：https://trinkerrstuff.wordpress.com/2018/03/15/2246/  
+<br/>  
+
+#### 练习    
+***
+请你修改代码，绘制CO和SO~2~的组合图。 
+
+CO使用左侧y轴，SO~2~使用右侧y轴。  
+
+CO和SO~2~采用线型。  
+
+CO用黄色，SO~2~用蓝色。 
+
+SO2设定的范围为0-30 ppbv。
+
+
+点击“Run Code”即可测试你的代码。(提示：CO和SO~2~分别是第4和5列)  
+
+```{r regular4, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+geom_ts(
+  df=aqids,   
+  yl=c(3,2), yr=6,   
+  alist=c(3,2), llist=6,   
+  yllab=bquote(NO[x]~" "~(ppbv)), yrlab=bquote(O[3]~" "~(ppbv)), xlab="Datetime",  
+  alab=list(bquote(NO[2]~" "), bquote(NO~" ")), llab=list(bquote(O[3]~" ")),  
+  lcc="#ff4d4f", aff=c("#096dd9","#69c0ff")  
+)
+```
+<br/>  
+  
+#### 交换图层顺序
+***
+有时候你可能会想调节物种或者图层的顺序，例如让某个物种或者某类图型显示在图最外侧。  
+
+感谢ggplot2的绘图系统，我们可以很轻易地实现。
+
+对于同一个侧同一图型的物种，参数中排列的顺序决定了它们在图中的内外顺序，写在后面的，会画在外侧。  
+
+例如下面这个例子，两个图的代码的唯一的区别只在于NO~2~和NO的列号（分别为3和2）在参数中的排列顺序不同。
+
+点击“Run Code”，看一下效果：
+
+```{r regular5, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+p1=geom_ts(
+  df=aqids,   
+  yl=c(3,2), 
+  alist=c(3,2),   
+  yllab=bquote(NO[x]~" "~(ppbv)), xlab="Datetime",  
+  alab=list(bquote(NO[2]~" "), bquote(NO~" ")),  
+  aff=c("#096dd9","#69c0ff"),
+  ana=FALSE,
+  apos="identity"
+)
+p2=geom_ts(
+  df=aqids,   
+  yl=c(2,3), 
+  alist=c(2,3),   
+  yllab=bquote(NO[x]~" "~(ppbv)), xlab="Datetime",  
+  alab=list(bquote(NO~" "), bquote(NO[2]~" ")),  
+  aff=c("#69c0ff", "#096dd9"),
+  ana=FALSE,
+  apos="identity"
+)
+library(patchwork)
+p1/p2
+```
+
+对于不同图层（y轴左右侧不同、图型不同），可以通过结果中的layers来调整。  
+
+例如下面这个例子，图1有两个图层：一个是右侧y轴+面积图；一个是右侧y轴+线型图。  
+
+我们把图1复制了一份生成图2，然后交换了图2中两个图层的顺序。
+
+点击“Run Code”，看一下效果：  
+
+```{r regular6, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+p1=geom_ts(
+  df=aqids,   
+  yl=c(3,2), yr=6,   
+  alist=c(3,2), llist=6,   
+  yllab=bquote(NO[x]~" "~(ppbv)), yrlab=bquote(O[3]~" "~(ppbv)), xlab="Datetime",  
+  alab=list(bquote(NO[2]~" "), bquote(NO~" ")), llab=list(bquote(O[3]~" ")),  
+  lcc="#ff4d4f", aff=c("#096dd9","#69c0ff"),
+  ana=FALSE
+)
+p2=p1
+p2$layers[c(1,2)]=p2$layers[c(2,1)]
+library(patchwork)
+p1/p2
+```
+<br/>  
+
+#### 组合几个时间序列图。
+***
+通过前面的介绍，你已经懂得用geom_ts绘制常规时间序列图了。  
+
+接下来有个问题，怎么组合这些图呢？比如常见的把它们堆积起来的画法，如何实现呢？  
+
+感谢ggplot2的兄弟单位--patchwork包让这件事情变得很简单。  
+
+patchwork最基础的用法实在太棒了。假设你有两个图，分别为p1和p2。  
+
+只需要写p1+p2，他们就会左右拼接起来；只需要写p1/p2，他们就会上下堆积起来。  
+
+如果你有好几个图，一切就更有趣了，你甚至可以通过结合律来组合他们，例如(p1+p2)/(p3+p4)  
+
+如果你想了解更多patchwork的“骚操作”，请访问：https://patchwork.data-imaginist.com/
+
+扯远了，我说说你怎么堆积几个时间序列吧。
+
+按照前面geom_ts的语法，我可以写一个p1来表示臭氧时间序列图，写一个p2来表示NOx的时间序列图。  
+
+然后载入patchwork包，写上p1/p2，运行代码，即可。  
+
+
+```{r regular7, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+p1=geom_ts(
+  df=aqids,   
+  yl=c(3,2), 
+  llist=c(3,2),   
+  yllab=bquote(NO[x]~" "~(ppbv)), xlab="Datetime",  
+  llab=list(bquote(NO[2]~" "), bquote(NO~" ")),  
+  lcc=c("#096dd9","#69c0ff")
+)
+p2=geom_ts(
+  df=aqids,   
+  yl=6, 
+  llist=6,   
+  yllab=bquote(O[3]~" "~(ppbv)), xlab="Datetime",  
+  llab=list(bquote(O[3]~" ")),  
+  lcc="#ff4d4f"
+)
+library(patchwork)
+p1/p2
+```
+
+你还可以进一步除了最下面那个图之外的其他图的时间轴文字都移除，这样看起来更加紧凑。  
+
+只要在不要时间轴文字的图代码后面加一串如下代码即可：
+
+p+theme(axis.title.x=element_blank(),axis.text.x=element_blank(),axis.ticks.x=element_blank())   
+
+但是切记，这样操作组合的前提是，几个时间序列的时间范围是一致的，否则可能会造成误解！！！
+
+点击运行下面这段代码试试看（可以比较一下和前面组合图的代码有什么区别）：  
+
+```{r regular8_2, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+p1=geom_ts(
+  df=aqids,   
+  yl=c(3,2), 
+  llist=c(3,2),   
+  yllab=bquote(NO[x]~" "~(ppbv)), xlab="Datetime",  
+  llab=list(bquote(NO[2]~" "), bquote(NO~" ")),  
+  lcc=c("#096dd9","#69c0ff")
+)+theme(axis.title.x=element_blank(),axis.text.x=element_blank(),axis.ticks.x=element_blank())
+p2=geom_ts(
+  df=aqids,   
+  yl=6, 
+  llist=6,   
+  yllab=bquote(O[3]~" "~(ppbv)), xlab="Datetime",  
+  llab=list(bquote(O[3]~" ")),  
+  lcc="#ff4d4f"
+)
+library(patchwork)
+p1/p2
+```
+
+如果你觉得两个图距离有点大，可以试着在堆积图的时候加上这串代码把他们拉近些：  
+
+p1/p2&theme(plot.margin = margin(b=1))    
+
+点击运行下面这段代码试试看（可以比较一下和前面组合图的代码有什么区别）：  
+
+```{r regular8_3, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+p1=geom_ts(
+  df=aqids,   
+  yl=c(3,2), 
+  llist=c(3,2),   
+  yllab=bquote(NO[x]~" "~(ppbv)), xlab="Datetime",  
+  llab=list(bquote(NO[2]~" "), bquote(NO~" ")),  
+  lcc=c("#096dd9","#69c0ff")
+)+theme(axis.title.x=element_blank(),axis.text.x=element_blank(),axis.ticks.x=element_blank())
+p2=geom_ts(
+  df=aqids,   
+  yl=6, 
+  llist=6,   
+  yllab=bquote(O[3]~" "~(ppbv)), xlab="Datetime",  
+  llab=list(bquote(O[3]~" ")),  
+  lcc="#ff4d4f"
+)
+library(patchwork)
+p1/p2&theme(plot.margin = margin(b=1))
+```
+现在，你应该可以从容又快速地绘制常规时间序列图了。单个图内多物种组合、分轴，多个图组合应该都是小case了。  
+<br/>   
+  
+#### 一步到位的画法
+***
+当然了，如果你有时候很累的话，或者老板只给你10秒钟的话，试试geom_ts_batch吧：
+```{r regular9, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+geom_ts_batch(aqids)
+```
+
+你也可以稍微再加点美化。
+```{r regular10, fig.height=6, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+xlab=bquote(Time~"")
+ylab=list(bquote(NO~" "~(ppbv)), bquote(NO[2]~" "~(ppbv)), bquote(CO~" "~(ppmv)), bquote(SO[2]~" "~(ppbv)), bquote(O[3]~" "~(ppbv)))
+cclist=c("#eb2f96", "#1890ff", "#52c41a", "#faad14", "#f5222d")
+geom_ts_batch(aqids, xlab=xlab, ylab=ylab, cclist=cclist, bquote=TRUE)
+```
+<br/>  
+  
+### 绘制风时间序列
+***
+人无完人，ggplot2绘图系统无法很好绘制那种箭头长度指代风速的风时间序列图； 
+
+但会完蛋，我们总是会有画风时间序列图的需求的。 
+
+因此，我只能曲线救国了。  
+
+你试试这个函数吧。 
+
+只需要告诉它表名，风速和风向是第几列即可。
+
+```{r regular11, fig.height=4, fig.width=8, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+geom_tsw(metds, coliws=4, coliwd=5)
+```
+<br/>  
+
+### 绘制粒径时间序列
+***
+
+见气溶胶粒径模块。  
+
+### 绘制平均变化
+***
+
+`geom_avri()`允许你绘制平均变化。  
+
+参数中`cave`和`cave`分别是平均变化的列索引和它的标准偏差。 
+
+我们先用`avri()`计算平均变化及其方差，然后用`geom_avri()`绘图。  
+
+```{r geom_avri1, fig.width=3.5, fig.height = 2.5, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+avri_aqi=avri(aqi, bkip = "1 hour", mode = "recipes", value = "day", st = "2017-05-01 00:00:00")
+geom_avri(avri_aqi,cave=6,csd=11)
+``` 
+
+你可以进一步美化图像。   
+
+```{r geom_avri2, fig.width=3.5, fig.height = 2.5, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+geom_avri(avri_aqi,cave=6,csd=11,alpha=0.5,lcc="#0050b3",
+rff="#40a9ff", xlab="Hour of day",ylab=bquote(O[3]~" "~(ppbv)))
+``` 
+
+`geom_avri_batch()`允许你绘制批量的平均变化。 
+
+输入的数据应该包含平均变化和标准偏差。一个例子是3个物种的时间序列。第二列到第四列是平均变化，第五列到第七列是标准偏差。  
+
+你可以直接使用`avri()`的结果作为输入。  
+
+```{r geom_avri_batch1, fig.width=7, fig.height = 7.5, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+geom_avri_batch(avri_aqi)
+``` 
+
+你可以进一步美化图像。  
+
+```{r geom_avri_batch2, fig.width=7, fig.height = 7.5, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+lcc=c("#f5222d","#fa8c16","#52c41a","#1890ff","#722ed1")
+rff=c("#ff7875","#ffc069","#95de64","#69c0ff","#b37feb")
+xlab1=list(bquote(Time~""),bquote(Time~""),bquote(Time~""), bquote(Time~""),bquote(Time~""))
+ylab1=list(bquote(NO~" "~(ppbv)), bquote(NO[2]~" "~(ppbv)), bquote(CO~" "~(ppmv)), bquote(SO[2]~" "~(ppbv)), bquote(O[3]~" "~(ppbv)))
+geom_avri_batch(avri_aqi, alpha=0.6, xlab=xlab1, ylab=ylab1, lcc=lcc, rff=rff, bquote=TRUE)
+``` 
+
+## 空气质量
+***  
+
+### 计算每日最大8小时臭氧浓度均值   
+***  
+
+你可以使用`dm8n()`来计算每日最大8小时臭氧。   
+`colid`是日期的列索引。  
+`colio'是臭氧的列索引。  
+`outputMode`有两个选项：值`1`将输出1个列表，其中包括1个表（最大8小时的臭氧）；
+值`2`将输1个包含4个表格的列表（8小时臭氧、有效小时数的统计、 8小时平均浓度的统计、每天有效的8小时平均浓度的统计、最大8小时臭氧）。  
+该函数将同时计算其他物种的平均值，并将其绘制出来。  
+
+```{r dm8n, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+dm8n_df = dm8n(aqi, colio=6, outputmode = 1)
+dm8n_df
+```
+
+如果你不想要这个图，或者你想节省时间，你可以试试`dm8n_np()`。
+
+```{r dm8n_np, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+dm8n_df = dm8n_np(aqi, colio=6, outputmode = 1)
+dm8n_df
+```
+
+### 批算计算每日最大8小时臭氧浓度均值
+***  
+
+`dm8n_batch()`允许你计算多个站点（或城市，或传感器）的每日最大8小时臭氧，这意味着它将计算除第一列（日期）外所有列的每日最大8小时臭氧。  
+
+## VOC化学
+***  
+
+### 转换VOC单位，分析VOC浓度 
+***  
+
+`vocct()`允许你在微克/立方米(ugm)和十亿分之一体积(ppbv)之间转换VOCs的单位；进行VOCs浓度的统计。  
+你需要将`unit`设置为 `ugm` 或 `ppbv`。 `ugm`表示ug m~-3~。  `ppbv`是指十亿分之一的体积。  
+
+```{r vocct, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+summary(voc_con)
+```
+
+`MW_Result`是匹配的分子量（MW）值结果。
+
+```{r vocct_MW_Result, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+voc_con[["MW_Result"]]
+```
+
+`Con_ugm`是按种类划分的VOC质量浓度的时间序列。  
+
+```{r vocct_Con_ugm, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+voc_con[["Con_ugm"]]
+```
+
+`Con_ugm_stat`是按物种统计的VOC质量浓度。   
+
+```{r vocct_Con_ugm_stat, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+voc_con[["Con_ugm_stat"]]
+```
+
+`Con_ugm_group`是按组分类的VOC质量浓度的时间序列。  
+
+```{r vocct_Con_ugm_group, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+voc_con[["Con_ugm_group"]]
+```
+
+`Con_ugm_group_stat`是根据主要组别统计的VOC质量浓度。  
+
+```{r vocct_Con_ugm_group_stat, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+voc_con[["Con_ugm_group_stat"]]
+```
+
+`Con_ppbv`是按种类划分的VOC体积浓度的时间序列。  
+
+```{r vocct_Con_ppbv, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+voc_con[["Con_ppbv"]]
+```
+
+`Con_ppbv_stat`是按物种统计的VOC体积浓度。  
+
+```{r vocct_Con_ppbv_stat, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+voc_con[["Con_ppbv_stat"]]
+```
+
+`Con_ppbv_group`是按主要组别划分的VOC体积浓度的时间序列。  
+
+```{r vocct_Con_ppbv_group, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+voc_con[["Con_ppbv_group"]]
+```
+
+`Con_ppbv_group_stat`是按组分类的VOC体积浓度时间序列。  
+
+```{r vocct_Con_ppbv_group_stat, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+voc_con[["Con_ppbv_group_stat"]]
+```
+
+
+### 计算臭氧生成潜力  
+***  
+
+The `ofp()` allows you to statistics time series:  
+
+```{r ofp, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+summary(voc_ofp)
+```
+
+`MIR_Result`是匹配的MIR值结果。    
+
+```{r ofp_MIR_Result, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+voc_ofp[["MIR_Result"]]
+```
+
+`OFP_Result`是按物种划分的VOC的OFP时间序列。    
+
+```{r ofp_OFP_Result, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+voc_ofp[["OFP_Result"]]
+```
+
+OFP_Result_stat "是按物种统计的VOC的OFP。    
+
+```{r ofp_, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+voc_ofp[["OFP_Result_stat"]]
+```
+
+`OFP_Result_group`是按组分类的VOC的时间序列。    
+
+```{r ofp_OFP_Result_group, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+voc_ofp[["OFP_Result_group"]]
+```
+
+`OFP_Result_group_stat "是VOC的OFP按主要组别进行的统计。  
+
+```{r ofp_OFP_Result_group_stat, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+voc_ofp[["OFP_Result_group_stat"]]
+```
+
+### 计算OH反应活性 
+***  
+
+`loh()`允许你统计时间序列。  
+
+```{r loh, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+summary(voc_loh)
+```
+
+`KOH_Result`是匹配的KOH值结果。   
+
+```{r loh_KOH_Result, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+voc_loh[["KOH_Result"]]
+```
+
+`LOH_Result`是按物种划分的VOC的LOH时间序列。  
+
+```{r loh_LOH_Result, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+voc_loh[["LOH_Result"]]
+```
+
+`LOH_Result_stat`是VOC的LOH按种类的统计。  
+
+```{r loh_LOH_Result_stat, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+voc_loh[["LOH_Result_stat"]]
+```
+
+`LOH_Result_group`是按组分类的VOC的LOH时间序列。    
+
+```{r loh_LOH_Result_group, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+voc_loh[["LOH_Result_group"]]
+```
+
+`LOH_Result_group_stat`是VOC的LOH按主要组别进行的统计。 
+
+```{r loh_LOH_Result_group_stat, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+voc_loh[["LOH_Result_group_stat"]]
+```
+
+### Get K~OH~  
+***  
+
+`koh()`允许你搜索K~OH~值。
+
+```{r koh, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+koh("propene")
+```
+
+## 气溶胶粒径
+***
+
+流程和功能如下图所示：  
+
+![](https://s1.ax1x.com/2022/04/05/qLbLef.png){width=500px}
+
+我们先读取包里内置的smps文件。提取粒径数据。设置时间列格式。
+这里我们定义两种
+
+```{r read_psd, warning=FALSE, exercise=TRUE, tidy=FALSE}
+#Read built-in files
+dn_table = read.delim(system.file("extdata", "smps.txt", package = "foqat"), check.names = FALSE)
+dn1_table=dn_table[,c(1,5:148)]
+#Set time format
+dn1_table[,1]=as.POSIXct(dn1_table[,1], format="%m/%d/%Y %H:%M:%S", tz="GMT")
+dn1_table
+```
+
+### 绘出粒径分布的时间序列  
+***  
+
+`geom_psd()`允许你绘制宽表数据。
+
+输入的是宽表数据。  
+输入的第一列是数据时间；其他列是每个粒度通道的数浓度（N，单位：#/cm3）或对数浓度（dN/logdp，单位：# cm~-3~）。  
+其他列的列名是每个粒度通道的中间颗粒大小。    
+
+```{r geom_psd, fig.width = 7, fig.height = 3, warning=FALSE, exercise=TRUE, tidy=FALSE}
+geom_psd(dn1_table,fsz=10)
+```
+
+### 计算相关参数并在dn和dn/dlogdp之间转换数据    
+***  
+
+`nsvp()`可以帮助你计算颗粒的表面积、体积和质量，通过颗粒数量的浓度来计算。 
+
+计算结果分为两个表格，一个是子粒径段`dN`, `dN_dlogdp`, `dS`, `dV`, `dM`, `dS_dlogdp`, `dV_dlogdp`, dM_dlogdp`；另一个是总粒径段`N`, `S`, `V`, `M`。   
+
+```{r nsvp1, warning=FALSE, exercise=TRUE, tidy=FALSE}
+dn2_table=nsvp(dn1_table,dlogdp=FALSE)
+dn2_table[["df_channels"]]
+dn2_table[["df_total"]]
+```
+
+`nsvp`也可以帮助你在dn和dn/dlogdp之间转换数据类型。 
+
+```{r nsvp2, warning=FALSE, exercise=TRUE, tidy=FALSE}
+dndlogdp_list=dn2_table[["df_channels"]][,c(1,2,4)]
+dndlogdp_list
+```
+
+### 在宽表和长表之间转换 
+***  
+
+`transp()`将两种形式的表格来回转换，输入一种，然后输出另一种。
+
+```{r transp, warning=FALSE, exercise=TRUE, tidy=FALSE}
+dndlogdp_table=transp(dndlogdp_list)
+dndlogdp_table
+```
+
+
+### 重新采样宽表粒径数据
+***  
+
+`trs()`可以对宽表的粒度分布的时间序列进行重新取样和切割。   
+
+```{r trs_psd, warning=FALSE, exercise=TRUE, tidy=FALSE}
+x=trs(dndlogdp_table, st="2021-06-07 00:00:00", bkip="5 mins")
+x
+```
+
+### 计算宽表粒径数据的平均变化
+***  
+
+`avri()` can calculate the average variation of particle size time series.    
+
+```{r avri_psd1, fig.width = 7, fig.height = 3, warning=FALSE, exercise=TRUE, tidy=FALSE}
+x=avri(dndlogdp_table, st="2021-06-07 00:00:00", bkip="5 mins", mode="ncycle", value=288)
+x
+```
+
+### 计算粒径谱参数的平均分布
+***  
+
+`avri()`可以计算出粒径时间序列的平均变化。  
+
+```{r avri_psd2, fig.width = 7, fig.height = 3, warning=FALSE, exercise=TRUE, tidy=FALSE}
+dsdlogdp_list=dn2_table[["df_channels"]][,c(2,5)]
+ds_avri=avri(dsdlogdp_list,mode="custom",value=1)
+ds_avri
+```
+
+画图  
+
+```{r, fig.width = 7}
+par(mar=c(5,5,2,2))
+plot(x=ds_avri[,1],y=ds_avri[,2], pch=16, xlab="Midrange (nm)", ylab=expression("dS (cm"^2*"/cm"^3*")"), col="#597ef7")
+```
+
+## TUV计算
+***  
+
+### 在线批量计算TUV  
+***  
+
+TUV模型有在线和离线两种版本，但都需要每天运行（即在运行的每一天重新设置参数）。  
+
+`tuv_batch()`通过读取建议的输入参数及其值的时间序列来运行在线批处理TUV，并将结果汇总到一个新的数据框。  
+
+`tuv_batch()`自动进行在线TUV计算（https://www.acom.ucar.edu/Models/TUV/Interactive_TUV/）。  
+
+支持四种输出模式。  
+输出模式2：分子光解频率（109个光反应）。分子光解频率（109个光反应）。   
+输出模式3：加权辐照度（27个加权函数）。   
+输出模式4：光谱光通量。  
+输出模式5：光谱辐照度。  
+
+举例：  
+输出分子光解频率（109个光反应）  
+时间范围：2021年3月1日  
+分辨率：1小时  
+地面高程 1 km  
+测量高度 1.05 km  
+经度 109.747144 °  
+纬度 38.298267 °  
+臭氧柱浓度 306 DU  
+
+```{r tuv_batch, warning=FALSE, exercise=TRUE, tidy=FALSE}
+df=data.frame(
+  time=seq(as.POSIXct("2021-03-01 00:00:00",tz="GMT"), as.POSIXct("2021-03-01 3:00:00",tz="GMT"), by="hour"), 
+  gAltitude=rep(1, 4), 
+  mAltitude=rep(1.05, 4),
+  longitude=rep(109.747144, 4),
+  latitude=rep(38.298267, 4),
+  ozone=rep(306, 4)
+)
+tuv_df=tuv_batch(df, inputMode=0, outputMode=2, nStreams=-2)
+head(tuv_df)
+```
