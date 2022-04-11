@@ -139,6 +139,8 @@ y
 要创造一个`List`只要往里面装东西。
 
 ```{r list, warning=FALSE, exercise=TRUE, tidy=FALSE}
+x=c(1,2,3,4,5,6)
+y=data.frame(a=c(1,2,3,4,5,6),b=c(1,2,3,1,2,3),c=c(4,5,6,4,5,6))
 z=list(x, y)
 z
 ```
@@ -852,6 +854,7 @@ dm8n_df
 你需要将`unit`设置为 `ugm` 或 `ppbv`。 `ugm`表示ug m~-3~。  `ppbv`是指十亿分之一的体积。  
 
 ```{r vocct, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+voc_con=vocct(voc)
 summary(voc_con)
 ```
 
@@ -916,6 +919,7 @@ voc_con[["Con_ppbv_group_stat"]]
 The `ofp()` allows you to statistics time series:  
 
 ```{r ofp, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+voc_ofp=ofp(voc)
 summary(voc_ofp)
 ```
 
@@ -955,6 +959,7 @@ voc_ofp[["OFP_Result_group_stat"]]
 `loh()`允许你统计时间序列。  
 
 ```{r loh, message=FALSE, warning=FALSE, exercise=TRUE, tidy=FALSE}
+voc_loh=loh(voc)
 summary(voc_loh)
 ```
 
