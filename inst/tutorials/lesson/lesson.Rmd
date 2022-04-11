@@ -1099,7 +1099,7 @@ ds_avri
 
 画图  
 
-```{r, fig.width = 7}
+```{r par, fig.width = 7, warning=FALSE, exercise=TRUE, tidy=FALSE}
 par(mar=c(5,5,2,2))
 plot(x=ds_avri[,1],y=ds_avri[,2], pch=16, xlab="Midrange (nm)", ylab=expression("dS (cm"^2*"/cm"^3*")"), col="#597ef7")
 ```
